@@ -2,303 +2,366 @@
 # -*- coding: cp1251 -*-
 # Tested on Python Release 2.3 Win32
 
-import os
-
-WorkPath = """E:\MMV\pt"""
-FileName = """lst_3372.htm"""
-LogName = """Log.txt"""
-
-from types import *
-
-FileD=open(WorkPath + os.sep + FileName, 'rb')
-FileLog=open(WorkPath + os.sep + LogName, 'wb')
-
-import codecs, sys
-__, __, reader, __ = codecs.lookup("cp1251") 
-encoder, __, __, writer = codecs.lookup("cp1251") 
-oemout = writer(FileLog) 
-ansiin = reader(FileD) 
-
-Page=FileD.read()
+#import codecs, sys
+#__, __, reader, __ = codecs.lookup("cp1251") 
+#encoder, __, __, writer = codecs.lookup("cp1251") 
+#oemout = writer(FileLog) 
+#ansiin = reader(FileD) 
 
 #oemout.write('Начали...\n')
 
-import htmllib, formatter
-import re
-from operator import truth
-import string
+#import htmllib, formatter
+# from operator import truth
 
+import logging
+
+import string
+import sys
+import os
+import urllib
+from types import *
+import re
+#import sre
+#flags=re.LOCALE | re.MULTILINE | re.UNICODE | re.VERBOSE | re.DOTALL | re.IGNORECASE | sre.DEBUG
 flags=re.LOCALE | re.MULTILINE | re.UNICODE | re.VERBOSE | re.DOTALL | re.IGNORECASE
 
-#print >>FileLog, '\n         А по русски?\n'
+class ConvertationFail(Exception):pass
 
-PagePos=0
+def TagNFormat(str):
+    """ Easy HTML Pretty Formatter"""
+    return re.sub('(?P<Tag><(br|p)>)((?P=Tag)|(?!\n)(?!<(/|)(br|p)>))', '\g<Tag>\n', str)
+    # ('<br>(?!\n)', '<br>\n',str)
 
-#1
-re1=re.compile('''
-    .*?<table[^>]*?>
-    .*?<tr[^>]*?>
-    .*?<td[^>]*?>
-    (.*?<a\ href="(?P<PrevRef>lst_[0-9]*\.htm)">.*?(Предыдущий).*?</a>|)
-    .*?<td[^>]*?>
-    .*?\d{1,2}\ \S*?\ \d{2,4}\ -\ \d{1,2}\ \S*?\ \d{2,4}.*?  # Date - Date
-    .*?<td[^>]*?>
-    (.*?<a\ href="(?P<NextRef>lst_[0-9]*\.htm)">.*?(Следующий).*?</a>|)
-    .*?</table>
-                    ''', flags)
-print re1
-match1=re1.match(Page, PagePos)
-PagePos=match1.end()
-print match1.groups()
-print >>FileLog, 'Предидущий лист : ' + match1.groupdict('')['PrevRef']
-print >>FileLog, 'Следующий лист  : ' + match1.groupdict('')['NextRef']
-
-
-#2
-re2=re.compile('''
-    .*?добавить\ новое
-                    ''', flags)
-match2=re2.match(Page, PagePos)
-PagePos=match2.end()
-print match2.groups()
-print 'forrum Header passed'
-print >>FileLog, 'forrum Header passed'
-
-#3 begin repeating part
-re3=re.compile('''
-    .*?<table[^>]*?>.*?
-    <tr[^>]*?>.*?
-    <td[^>]*?>.*?
-    <font\ size=2[^>]*?>(?P<ReplyOn>.*?)</font>.*?   # Отклик на
-    </table>
-                    ''', flags)
-match3=re3.match(Page, PagePos)
-PagePos=match3.end()
-print match3.groups()
-print >>FileLog
-print >>FileLog, 'Отклик на   : ' + match3.group('ReplyOn')
-
-#4
-re4=re.compile('''
-    .*?<table[^>]*?>
-    .*?<tr[^>]*?>
-    .*?<td[^>]*?>
-    .*?<font[^>]*?>
-    .*?&nbsp;<b>(?P<Author>[^<>]*?)</font>   # author
-    .*?<td[^>]*?>
-    .*?<font[^>]*?>
-    .*?(?P<Date>\d{1,2}\ \S*?\ \d{2,4}).*?</font>  # Date
-    .*?<td[^>]*?>
-    .*?<font[^>]*?>
-    .*?(?P<Time>\d{1,2}:\d{2}).*?</font>   #  Time
-    .*?<td[^>]*?>
-    .*?<font[^>]*?>
-    .*?Cообщение\ №\ (?P<MsgID>\d+).*?</font>  # MsgID
-    .*?<td[^>]*?>
-    .*?<tr[^>]*?>
-    .*?<td[^>]*?>
-    .*?<font[^>]*?>.*?Тема:.*?</font>
-    .*?<td[^>]*?>
-    .*?Опусы\ и\ пародии,\ навеянные\ фант\.\ произведениями
-    .*?</table>
-
-    .*?<table[^>]*?>
-    .*?<tr[^>]*?>
-    .*?Заголовок:
-    .*?<td[^>]*?>&nbsp;(?P<PostName>.*?)  # Subtopic
-    \s*<tr[^>]*?>
-    .*?<td[^>]*?>\s*(?P<PostBody>.*?)      # Body
-    \s*</table>
-
-    .*?<table[^>]*?>
-    .*?<tr[^>]*?>
-    .*?<td[^>]*?>
-    .*?<a\ href="mailto:(?P<AuthorMail>[^<>]*?)"[^>]*?>.*?</a> # Author e
-    .*?<a\ href="http://(?P<AuthorWWW>[^<>]*?)"[^>]*?>.*?</a>
-
-    (?P<Replies>.*?)                       # Возможные Оклики
-
-    .*?<tr[^>]*?>
-    .*?</table>
-                    ''', flags)
-
-match4=re4.match(Page, PagePos)
-PagePos=match4.end()
-print >>FileLog, 'Автор       : ' + match4.group('Author')
-print >>FileLog, 'Дата        : ' + match4.group('Date') + '  ' + match4.group('Time')
-print >>FileLog, 'Сообщение № : ' + match4.group('MsgID')
-print >>FileLog
-print >>FileLog, 'Топик       : ' + match4.group('PostName')
-print >>FileLog
-print >>FileLog, match4.group('PostBody')
-print >>FileLog
-print >>FileLog, 'Mailto      : ' + match4.group('AuthorMail')
-print >>FileLog, 'http://     : ' + match4.group('AuthorWWW')
-print >>FileLog, 'Отклики     : ' + match4.group('Replies')
-
-# Конец повторяющейся части
-
-print PagePos
-print Page[PagePos:PagePos+400]
-
-#pattern1='П'
-TestString='Предыдущий лист'
-#print truth(re.search(pattern1, TestString))
-Search_NotSpace=re.compile('\S')
-Search_PastRef=re.compile('Предыдущий ли', re.LOCALE | re.MULTILINE | re.UNICODE)
-
-STARTTAG=1
-ENDTAG=2
-
-TestTemplate=[]
-
-class FKParser(htmllib.HTMLParser):
-    def __init__(self, formatter):
-        htmllib.HTMLParser.__init__(self, formatter)
-        self.Posts = [] #List
-        self.CPost = {} #Dictionary
-        self.CurrentHref = None
-        self.PastRef = None
-        self.State = 0
-
-    def handle_tag(self, tag, open_type, metod, attrs):
-        if   self.State==2:
-            if   tag=='table':
-                self.State=3
-        elif self.State==3:
-            if   tag=='table':
-                self.State=4
-        elif self.State==4:
-            if   tag=='table':
-                self.State=5
-        
-    def handle_starttag(self, tag, metod, attrs):
-        print "Encountered the beginning of a %s tag" % tag
-        htmllib.HTMLParser.handle_starttag(self, tag, metod, attrs)
-        self.handle_tag(tag, STARTTAG, metod, attrs)
-
-    def handle_endtag(self, tag, metod):
-        print "Enountered the end of a %s tag" % tag
-        htmllib.HTMLParser.handle_endtag(self, tag, metod)
-        self.handle_tag(tag, ENDTAG, metod, [])
-
-    def handle_charref(self, ref):
-        print >>FileLog, ref
-
-    def handle_entityref(self, ref):
-        print >>FileLog, ref
-        
-    def anchor_bgn(self, href, name, type):
-        if not(href==None):
-            self.CurrentHref=href
-            print >>FileLog,  'New Href - ', self.CurrentHref
-        if not(name==None or name==''):
-            self.CurrentAName=name
-            print >>FileLog,  'New AName - ', self.CurrentAName
-            if re.match(r'\d', self.CurrentAName):
-                if self.State < 2 :
-                    self.State = 2
-                    self.CPost['PostID'] = name
-                    print >>FileLog, '  PostID = ', self.CPost['PostID']
-                else:
-                    print >>FileLog, '                   Unhandled State back !!!!!!!!! '
-        htmllib.HTMLParser.anchor_bgn(self, href, name, type)
-    def anchor_end(self):
-        self.CurrentHref=None
-        #htmllib.HTMLParser.anchor_end(self)
-
-    def start_td(self, attributes):
-        print >>FileLog,  '                <TD>'
-    def end_td(self):
-        print >>FileLog,  '                </TD>'
-
-    def start_tr(self, attributes):
-        print >>FileLog,  '                <TR>'
-    def end_tr(self):
-        print >>FileLog,  '                </TR>'
+def ParsePage(Page):
+    # Разбор страницы
     
-    def start_table(self, attributes):
-        print >>FileLog,  '                <TABLE>'
-    def end_table(self):
-        print >>FileLog,  '                </TABLE>'
+    PostsList=[]  # пустой список постов
     
-    def do_br(self, attributes):
-        print >>FileLog,  '<BR>'
+    print >>FileLog, 'Parsing Page : ' + FileName
+    print 'Parsing Page : ' + FileName
+    #1    Forum Header & Footer 
+    PageStructure=re.compile('''
+        .{0,7000}?<table[^>]*?>      #  Page Header
+        .{0,300}?<tr[^>]*?>
+        .{0,300}?<td[^>]*?>
+        (.{0,300}?<a\ href="(?P<PrevRef>lst_[0-9]*\.htm)">.{0,300}?(Предыдущий).{0,10}?</a>|)
+        .{0,300}?<td[^>]*?>
+        .*?\d{1,2}\ \S{1,20}?\ \d{2,4}\ -\ \d{1,2}\ \S{1,10}?\ \d{2,4}.{0,300}?  # Date - Date
+        .{0,300}?<td[^>]*?>
+        (.{0,300}?<a\ href="(?P<NextRef>lst_[0-9]*\.htm)">.{0,300}?(Следующий).{0,300}?</a>|)
+        .{0,300}?</table>
+        .{0,3000}?добавить\ новое
+    
+        (?P<Posts>.*)      # Messages
+    
+        <table[^>]{0,300}?>      # Page Footer
+        .{0,300}?<tr[^>]*?>
+        .{0,300}?<td[^>]*?>
+        (.{0,300}?<a\ href="(?P=PrevRef)">.{0,300}?(Предыдущий).{0,300}?</a>|)
+        .{0,300}?<td[^>]*?>
+        .{0,300}?\d{1,2}\ \S{1,20}?\ \d{2,4}\ -\ \d{1,2}\ \S{1,20}?\ \d{2,4}.{0,300}?  # Date - Date
+        .{0,300}?<td[^>]*?>
+        (.{0,300}?<a\ href="(?P=NextRef)">.*?(Следующий).{0,300}?</a>|)
+        .{0,300}?</table>
+                        ''', flags)
+    PSmatch=PageStructure.match(Page)
+    if PSmatch == None:
+        ErrMsg = 'Parsing Page Header&Footer Failed :-(\n' +\
+           'Convertation Aborted at : ' + FileName
+        parserlog.critical(ErrMsg)
+        raise ConvertationFail(ErrMsg)
+    # print match1.groups()
+    print >>FileLog, 'Forum Header & Footer parsed'
+    print 'Forum Header & Footer parsed'
+    PrevRef=PSmatch.groupdict('')['PrevRef']
+    NextRef=PSmatch.groupdict('')['NextRef']
+    print >>FileLog, 'Предидущий лист : ' + PSmatch.groupdict('')['PrevRef']
+    print >>FileLog, 'Следующий лист  : ' + PSmatch.groupdict('')['NextRef']
+    print >>FileLog
+    
+    PageBody=PSmatch.group('Posts')
+    
+    #
+    #3 begin repeating part
+    #
+    
+    PagePos=0
+    
+    #print PagePos
+    #print PageBody[PagePos:PagePos+600]
+    
+    while True:
+        PostData={}
+        # Reply On
+        re3=re.compile('''
+            .{0,300}?<a\ name="(?P<MsgID>\d*?)">     # Author e
+            .{0,50}?<table[^>]*>
+            .{0,50}?<tr[^>]*?>
+            .{0,50}?<td[^>]*?>
+            .{0,30}?<font\ size=2[^>]*?>(?P<ReplyOn>.*?)</font>   # Отклик на
+            .{0,300}?</table>
+                            ''', flags)
+        match3=re3.search(PageBody, PagePos)
+        if match3==None:
+            if len(PageBody) - PagePos > 300:
+                ErrMsg = 'Large undetected Body part :-(\n' +\
+                  'Convertation Aborted at : ' + FileName + ' Body Pos : '+ str(PagePos) +\
+                  '\nMessages found : ' + str(len(PostsList))
+                parserlog.critical(ErrMsg)
+                parserlog.info('Tail next part :\n'+\
+                               PageBody[PagePos:PagePos+1000])
+                raise ConvertationFail(ErrMsg)
+            print 'Body End.'
+            print 'Tail : ', len(PageBody) - PagePos
+            print 'Messages found : ', len(PostsList)
+            break
+#        print 'Forum Post Detected'
+        PagePos=match3.end()
+        PostData['MsgID']=match3.group('MsgID')
+        PostData['SourceFile']=FileName
+        PostData['ReplyOn']=match3.group('ReplyOn')
+        print >>FileLog
+        print >>FileLog, 'Сообщение № : ' + match3.group('MsgID')
+#        print >>FileLog, 'Источник    : ' + PostData['SourceFile'] + '#' + PostData['MsgID']
+        print >>FileLog, 'Отклик на   : ' + match3.group('ReplyOn')
         
-    def handle_data(self, data):
-        if (truth(Search_PastRef.search(data)) and \
-           not(self.CurrentHref==None or self.CurrentHref=='')):
-            self.PastRef=self.CurrentHref
-            print 'PastRef = ', self.PastRef
-        if truth(Search_NotSpace.match(data)):
-#            if self.State>
-#        if not(data=='\r\n'):
-            print >>FileLog, '       БЛОК ТЕКСТА\n'
-#            print >>FileLog,  'Match? - ', truth(Search2.search(data))
-#            print >>FileLog, 'Match? - ', string.find(data, 'П')
-#            ED=encoder(data, 'replace')[0]
-            ED=data
-            print >>FileLog, ED
-#            for c in ED: print >>FileLog, hex(ord(c)),
-#            print >>FileLog
+        #4 - Main message table
+        re3=re.compile('''
+            .{0,50}?<table[^>]*?>
+            .{0,50}?<tr[^>]*?>
+            .{0,50}?<td[^>]*?>
+            .{0,500}?<font[^>]*?>
+            .{0,500}?&nbsp;<b>(?P<Author>[^<>]*?)</font>             # Author
+            .{0,300}?<td[^>]*?>
+            .{0,300}?<font[^>]*?>
+            .{0,300}?(?P<Date>\d{1,2}\ \S*?\ \d{2,4}).{0,300}?</font>  # Date
+            .{0,300}?<td[^>]*?>
+            .{0,300}?<font[^>]*?>
+            .{0,300}?(?P<Time>\d{1,2}:\d{2}).{0,300}?</font>         #  Time
+            .{0,300}?<td[^>]*?>
+            .{0,300}?<font[^>]*?>
+            .{0,300}?Cообщение\ №\ (?P<MsgID>\d+).{0,300}?</font>    # MsgID
+            .{0,300}?<td[^>]*?>  # Отклик Редакт.
+            .{0,1000}?<tr[^>]*?>
+            .{0,300}?<td[^>]*?>
+            .{0,300}?<font[^>]*?>.{0,300}?Тема:.{0,300}?</font>
+            .{0,300}?<td[^>]*?>
+            .{0,300}?(&nbsp;|)(?P<Topic>[^<>]*?)                              # Topic
+            \s*</table>
+        
+            .{0,300}?<table[^>]*?>
+            .{0,50}?<tr[^>]*?>
+            .{0,300}?Заголовок:
+            .{0,300}?<td[^>]*?>&nbsp;(?P<PostName>.[^<>]*?)  # Subtopic
+            \s*<tr[^>]*?>
+            .{0,300}?<td[^>]*?>\s*(?P<PostBody>.*?)      # Body
+            \s*</table>
+        
+            .{0,300}?<table[^>]*?>
+            .{0,50}?<tr[^>]*?>
+            .{0,50}?<td[^>]*?>
+            .{0,50}?<a\ href="mailto:(?P<AuthorMail>[^<>]*?)"[^>]*?>.{0,300}?</a> # Author e
+            .{0,300}?<a\ href="(?P<AuthorWWW>[^<>]*?)"[^>]*?>.{0,600}?</a>
+        
+            (?P<Replies>.*?)                       # Возможные Оклики
+        
+            .{0,500}?<tr[^>]*?>
+            .{0,30}?</table>
+                            ''', flags)
+        
+        match3=re3.match(PageBody, PagePos)
+        if match3 == None:
+            ErrMsg = '\n\nMain message table dont match. :-(\n' +\
+               'Convertation Aborted at : ' + FileName + ' Body Pos : ' + str(PagePos) +\
+               '\nMessages found : ' + str(len(PostsList))
+            print >>FileLog, ErrMsg
+            print >>FileLog, 'Tail next part :'
+            print >>FileLog, PageBody[PagePos:PagePos+1000]
+            print ErrMsg
+            raise ConvertationFail(ErrMsg)
+        PagePos=match3.end()
+#        print 'Forum Post parsed'
+        print >>FileLog, 'Автор       : ' + match3.group('Author')
+        print >>FileLog, 'Дата        : ' + match3.group('Date') + '  ' + match3.group('Time')
+#        print >>FileLog, 'Сообщение № : ' + match3.group('MsgID')
+        print >>FileLog, 'Тема        : ' + match3.group('Topic')
+        print >>FileLog
+        print >>FileLog, 'Топик       : ' + match3.group('PostName')
+        print >>FileLog
+        print >>FileLog, TagNFormat(match3.group('PostBody'))
+        print >>FileLog
+        print >>FileLog, 'Mailto      : ' + match3.group('AuthorMail')
+        print >>FileLog, 'http://     : ' + match3.group('AuthorWWW')
+        print >>FileLog, 'Отклики     : ' + match3.group('Replies')
+    
+        # MsgID must be compared with previous detection
+        if not(string.find(match3.group('Topic'), 'Опусы и пародии, навеянные фант. произведениями') < 0):
+            for Atr in ('Author', 'Date', 'Time', 'MsgID', 'PostName',\
+                        'PostBody', 'AuthorMail', 'AuthorWWW', 'Replies'):
+                PostData[Atr]=match3.group(Atr)
+            print >>FileLog, 'Forum Post parsed'
+            PostsList=[PostData] + PostsList
+        else:
+            ErrMsg = 'Wrong Topic. Post Skipped!'
+            parserlog.warning(ErrMsg)
+            parserlog.debug('Тема пропущенного сообщения : ' + match3.group('Topic'))
+            print ErrMsg
+    return {'PrevRef':PrevRef, 'NextRef':NextRef, 'PostsList':PostsList}
+# end def ParsePage
 
-#            for c in u'П': print >>FileLog, hex(ord(c)),
-#            print >>FileLog
-        htmllib.HTMLParser.handle_data(self, data)
-#            oemout.write(data)
-    pass
 
-#FP=FKParser(formatter.NullFormatter())
-#FP.feed(Page)
-#FP.close()
+def OutputPage(ParseResult):
+    OutPageHeader = '''<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<title>Новые хроники Каэр Морхена %s</title>
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1251">
+</head>
 
+<body>
+<center><h3>Новые хроники Каэр Морхена<br>
+(<a href="%s" title="Оригинал в Форуме"><font size="-1">%s</font></a>)</h3>
+<p><a href="%s">&lt;&lt;- Предыдущий лист</a> |
+ <a href="%s">Следующий лист -&gt;&gt;</a></p>
+</center>
+'''
+    
+    OutPageBody = '''
+<h4>%s<br>
+<font size="-2">(<a href="%s" title="Оригинал сообщения в Форуме">№ %s</a>)</font></h3>
+<p><font size="-1"><a href="The_Omniscient_third_person.htm" title="Информация об Авторе">%s</a> | От %s</font>
+<p>
+%s
+<p>&nbsp;<p>
+'''
+    
+    OutPageFooter = '''<center>(<a href="%s" title="Оригинал в Форуме><font size="-1">%s</font></a>)</p>
+<p><a href="%s">&lt;&lt;- Предыдущий лист</a> | <a href="%s">Следующий лист -&gt;&gt;</a></p></center>
+</body>
+</html>
+'''
+    
+    rePageRef = re.compile('.*?lst_(\d*)\.htm', flags)
+    if ParseResult['PrevRef'] == '':
+        PrevRefID = ''
+    else:
+        PrevRefID = rePageRef.match(ParseResult['PrevRef']).group(1)
+        
+    if ParseResult['NextRef'] == '':
+        NextRefID = ''
+    else:
+        NextRefID = rePageRef.match(ParseResult['NextRef']).group(1)
+    
+    PostsList=ParseResult['PostsList']
+    
+    FileOut=open(OutPath + os.sep + 'opusi_' + PageID + '.htm', 'wb')
+    # Header
+    # Непонятно откуда взялись пустые страницы. XXX maybe remove empty pages...
+    if len(PostsList)>0:
+        Dates=PostsList[0]['Date'] + ' - ' + PostsList[-1]['Date']
+    else:
+        Dates='-- --- -- - -- --- --'
+    FileOut.write(OutPageHeader % (Dates,\
+                                   FileName, Dates,\
+                                   'opusi_' + PrevRefID + '.htm', 'opusi_' + NextRefID + '.htm')\
+                 )
+    # Body`s
+    for Post in PostsList:
+        FileOut.write(OutPageBody % (Post['PostName'], 
+                                     FileName + '#' + Post['MsgID'], Post['MsgID'],\
+                                     Post['Author'], Post['Date'] + ' ' + Post['Time'],\
+                                     TagNFormat(Post['PostBody']))\
+                     )
+    # Footer
+    FileOut.write(OutPageFooter % (FileName, Dates,\
+                                   'opusi_' + PrevRefID + '.htm', 'opusi_' + NextRefID + '.htm')\
+                 )
+    
+    FileOut.close
+# end def OutputPage
 
-class HTTemplateParser(htmllib.HTMLParser):
-    def __init__(self, formatter):
-        htmllib.HTMLParser.__init__(self, formatter)
-        self.Posts = [] #List
-        self.CPost = {} #Dictionary
-        self.CurrentHref = None
-        self.PastRef = None
-        self.State = 0
+WorkPath = "E:\MMV\pt"
+SourceCachePath = WorkPath + os.sep + "Cache"
+OutPath = WorkPath + os.sep + "Out"
+#FileName = "http://www.fiction.kiev.ua/forum/lst/lst_1577.htm"
+FileName = "http://www.fiction.kiev.ua/forum/lst/lst_2277.htm"
+#FileName = urllib.pathname2url("E:\MMV\pt\lst_3372.htm")
+LogName = "Log.txt"
+refresh = False
+ManualStep = False
 
-    def handle_tag(self, tag, open_type, attrs):
-        if open_type==STARTTAG:
-            print >>FileLog, '<%s' % tag ,
-            for TParam in attrs: print >>FileLog, ' %s="%s"' % TParam,
-            print >>FileLog, '>'
-        elif open_type==ENDTAG:
-            print >>FileLog, '</%s>' % tag
+FileLog=open(WorkPath + os.sep + LogName, 'wb')
+
+log = logging.getLogger('forum_parser')
+parserlog = logging.getLogger('forum_parser.parser')
+
+hdlrFile = logging.StreamHandler(FileLog)
+formatter = logging.Formatter('%(name)s %(levelname)s %(message)s')
+hdlrFile.setFormatter(formatter)
+log.addHandler(hdlrFile)
+
+#hdlrBuffFile = logging.MemoryHandler(128 , logging.WARNING, hdlrFile) 
+#hdlrBuffFile.setFormatter(formatter)
+#log.addHandler(hdlrBuffFile)
+
+hdlrCons = logging.StreamHandler()
+hdlrCons.setFormatter(formatter)
+log.addHandler(hdlrCons)
+
+log.setLevel(logging.DEBUG)
+
+log.info('Begin.')
+
+KeyInt=False
+while True:
+    log.info('Page     : ' + FileName)
+    fBase, fName = os.path.split(FileName)
+    rePageID = re.compile('lst_(\d*)\.htm', flags)
+    PageID = rePageID.match(fName).group(1)
+    
+    # Cached URL access
+    if not(os.path.exists(SourceCachePath + os.sep + fName)) or refresh:
+        # Download page
+        try:
+            log.info('Retriev url : ' + FileName)
+            urllib.urlretrieve(FileName, SourceCachePath + os.sep + fName)
+            log.info('Retriev complete.')
+        except KeyboardInterrupt:
+            #os.remove(SourceCachePath + os.sep + fName)
+            #raise
+            KeyInt=True
+            pass
+        if KeyInt: raise
+    else:
+        log.info('Use Cached.')
+    FileD=open(SourceCachePath + os.sep + fName, 'rb')
+    Page=FileD.read()
+    
+    ParseResult=ParsePage(Page)
+    
+    #print PagePos
+    #print PageBody[PagePos:PagePos+400]
+    
+    print '   ## Page Parse Complete! ##'
+#    print 'PrevRef: ', ParseResult['PrevRef']
+    print 'NextRef: ', ParseResult['NextRef']
+    
+    # Output html Template
+    try:
+        print 'Output Formatted Page....'
+        OutputPage(ParseResult)
+        print 'Output Formatted Page Complete.'
+    except KeyboardInterrupt:
+        #os.remove(SourceCachePath + os.sep + fName)
+        #raise
+        KeyInt=True
         pass
-
-    def handle_starttag(self, tag, metod, attrs):
-        self.handle_tag(tag, STARTTAG, attrs)
-        htmllib.HTMLParser.handle_starttag(self, tag, metod, attrs)
-
-    def handle_endtag(self, tag, metod):
-        self.handle_tag(tag, ENDTAG, [])
-        htmllib.HTMLParser.handle_endtag(self, tag, metod)
-       
-    def unknown_starttag(self, tag, attributes):
-        self.handle_tag(tag, STARTTAG, attributes)
-        htmllib.HTMLParser.unknown_starttag(self, tag, attributes)
-
-    def unknown_endtag(self, tag):
-        self.handle_tag(tag, ENDTAG, [])
-        htmllib.HTMLParser.unknown_endtag(self, tag)
-
-    def handle_data(self, data):
-        if truth(Search_NotSpace.search(data)):
-            print >>FileLog, data
-#            for c in data: print >>FileLog, ord(c),
-#            print >>FileLog
-        htmllib.HTMLParser.handle_data(self, data)
-
-#print >>FileLog, '\n         Template Test...\n'
-
-#FileTemplate = "lst_template.hpt"
-#FileT=open(WorkPath + os.sep + FileTemplate, 'rb')
-
-#TP=HTTemplateParser(formatter.NullFormatter())
-#TP.feed(FileT.read())
-#TP.close()
+    if KeyInt: raise
+    
+    if ParseResult['NextRef']=='':
+        print 'No NextRef. End.'
+        break
+    else:
+        FileName = fBase + '/' + ParseResult['NextRef']
+    if ManualStep:
+        raw_input('Press Enter for next page process...')
