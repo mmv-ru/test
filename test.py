@@ -1,5 +1,6 @@
 #!pyton
-# Tested on Python Release 2.2.3 Win32
+# -*- coding: cp1251 -*-
+# Tested on Python Release 2.3 Win32
 
 import os
 
@@ -20,12 +21,125 @@ ansiin = reader(FileD)
 
 Page=FileD.read()
 
-oemout.write('Начали...\n')
+#oemout.write('Начали...\n')
 
 import htmllib, formatter
 import re
 from operator import truth
 import string
+
+flags=re.LOCALE | re.MULTILINE | re.UNICODE | re.VERBOSE | re.DOTALL | re.IGNORECASE
+
+#print >>FileLog, '\n         А по русски?\n'
+
+PagePos=0
+
+#1
+re1=re.compile('''
+    .*?<table[^>]*?>
+    .*?<tr[^>]*?>
+    .*?<td[^>]*?>
+    (.*?<a\ href="(?P<PrevRef>lst_[0-9]*\.htm)">.*?(Предыдущий).*?</a>|)
+    .*?<td[^>]*?>
+    .*?\d{1,2}\ \S*?\ \d{2,4}\ -\ \d{1,2}\ \S*?\ \d{2,4}.*?  # Date - Date
+    .*?<td[^>]*?>
+    (.*?<a\ href="(?P<NextRef>lst_[0-9]*\.htm)">.*?(Следующий).*?</a>|)
+    .*?</table>
+                    ''', flags)
+print re1
+match1=re1.match(Page, PagePos)
+PagePos=match1.end()
+print match1.groups()
+print >>FileLog, 'Предидущий лист : ' + match1.groupdict('')['PrevRef']
+print >>FileLog, 'Следующий лист  : ' + match1.groupdict('')['NextRef']
+
+
+#2
+re2=re.compile('''
+    .*?добавить\ новое
+                    ''', flags)
+match2=re2.match(Page, PagePos)
+PagePos=match2.end()
+print match2.groups()
+print 'forrum Header passed'
+print >>FileLog, 'forrum Header passed'
+
+#3 begin repeating part
+re3=re.compile('''
+    .*?<table[^>]*?>.*?
+    <tr[^>]*?>.*?
+    <td[^>]*?>.*?
+    <font\ size=2[^>]*?>(?P<ReplyOn>.*?)</font>.*?   # Отклик на
+    </table>
+                    ''', flags)
+match3=re3.match(Page, PagePos)
+PagePos=match3.end()
+print match3.groups()
+print >>FileLog
+print >>FileLog, 'Отклик на   : ' + match3.group('ReplyOn')
+
+#4
+re4=re.compile('''
+    .*?<table[^>]*?>
+    .*?<tr[^>]*?>
+    .*?<td[^>]*?>
+    .*?<font[^>]*?>
+    .*?&nbsp;<b>(?P<Author>[^<>]*?)</font>   # author
+    .*?<td[^>]*?>
+    .*?<font[^>]*?>
+    .*?(?P<Date>\d{1,2}\ \S*?\ \d{2,4}).*?</font>  # Date
+    .*?<td[^>]*?>
+    .*?<font[^>]*?>
+    .*?(?P<Time>\d{1,2}:\d{2}).*?</font>   #  Time
+    .*?<td[^>]*?>
+    .*?<font[^>]*?>
+    .*?Cообщение\ №\ (?P<MsgID>\d+).*?</font>  # MsgID
+    .*?<td[^>]*?>
+    .*?<tr[^>]*?>
+    .*?<td[^>]*?>
+    .*?<font[^>]*?>.*?Тема:.*?</font>
+    .*?<td[^>]*?>
+    .*?Опусы\ и\ пародии,\ навеянные\ фант\.\ произведениями
+    .*?</table>
+
+    .*?<table[^>]*?>
+    .*?<tr[^>]*?>
+    .*?Заголовок:
+    .*?<td[^>]*?>&nbsp;(?P<PostName>.*?)  # Subtopic
+    \s*<tr[^>]*?>
+    .*?<td[^>]*?>\s*(?P<PostBody>.*?)      # Body
+    \s*</table>
+
+    .*?<table[^>]*?>
+    .*?<tr[^>]*?>
+    .*?<td[^>]*?>
+    .*?<a\ href="mailto:(?P<AuthorMail>[^<>]*?)"[^>]*?>.*?</a> # Author e
+    .*?<a\ href="http://(?P<AuthorWWW>[^<>]*?)"[^>]*?>.*?</a>
+
+    (?P<Replies>.*?)                       # Возможные Оклики
+
+    .*?<tr[^>]*?>
+    .*?</table>
+                    ''', flags)
+
+match4=re4.match(Page, PagePos)
+PagePos=match4.end()
+print >>FileLog, 'Автор       : ' + match4.group('Author')
+print >>FileLog, 'Дата        : ' + match4.group('Date') + '  ' + match4.group('Time')
+print >>FileLog, 'Сообщение № : ' + match4.group('MsgID')
+print >>FileLog
+print >>FileLog, 'Топик       : ' + match4.group('PostName')
+print >>FileLog
+print >>FileLog, match4.group('PostBody')
+print >>FileLog
+print >>FileLog, 'Mailto      : ' + match4.group('AuthorMail')
+print >>FileLog, 'http://     : ' + match4.group('AuthorWWW')
+print >>FileLog, 'Отклики     : ' + match4.group('Replies')
+
+# Конец повторяющейся части
+
+print PagePos
+print Page[PagePos:PagePos+400]
 
 #pattern1='П'
 TestString='Предыдущий лист'
@@ -180,11 +294,11 @@ class HTTemplateParser(htmllib.HTMLParser):
 #            print >>FileLog
         htmllib.HTMLParser.handle_data(self, data)
 
-print >>FileLog, '\n         Template Test...\n'
+#print >>FileLog, '\n         Template Test...\n'
 
-FileTemplate = "lst_template.hpt"
-FileT=open(WorkPath + os.sep + FileTemplate, 'rb')
+#FileTemplate = "lst_template.hpt"
+#FileT=open(WorkPath + os.sep + FileTemplate, 'rb')
 
-TP=HTTemplateParser(formatter.NullFormatter())
-TP.feed(FileT.read())
-TP.close()
+#TP=HTTemplateParser(formatter.NullFormatter())
+#TP.feed(FileT.read())
+#TP.close()
