@@ -39,7 +39,12 @@ def TagNFormat(str):
     return re.sub('(?P<Tag><(br|p)>)((?P=Tag)|(?!\n)(?!<(/|)(br|p)>))', '\g<Tag>\n', str)
     # ('<br>(?!\n)', '<br>\n',str)
 
-def ParsePage(Page):
+def ParsePage(Page, Topic=None):
+    
+    if Topic==None:
+        FilterTopic=True
+    else:
+        FilterTopic=False
     # Разбор страницы
     
     PostsList=[]  # пустой список постов
@@ -200,17 +205,28 @@ def ParsePage(Page):
         print >>FileLog, 'Отклики     : ' + match3.group('Replies')
     
         # MsgID must be compared with previous detection
-        if not(string.find(match3.group('Topic'), 'Опусы и пародии, навеянные фант. произведениями') < 0):
+        if Topic == None or not(string.find(match3.group('Topic'), Topic) < 0):
+            TopicMatch=True
+        else:
+            TopicMatch=False
+        if TopicMatch     or not(FilterTopic):
             for Atr in ('Author', 'Date', 'Time', 'MsgID', 'PostName',\
                         'PostBody', 'AuthorMail', 'AuthorWWW', 'Replies'):
                 PostData[Atr]=match3.group(Atr)
             print >>FileLog, 'Forum Post parsed'
             PostsList=[PostData] + PostsList
-        else:
+        if not(TopicMatch):
             ErrMsg = 'Wrong Topic. Post Skipped!'
             parserlog.warning(ErrMsg)
-            parserlog.debug('Тема пропущенного сообщения : ' + match3.group('Topic'))
-            print ErrMsg
+            if FilterTopic:
+                ErrMsg = 'Wrong Topic. Post Skipped!'
+                parserlog.warning(ErrMsg)
+                parserlog.debug('Тема пропущенного сообщения : ' + match3.group('Topic'))
+            else:
+                ErrMsg = 'Topic changed.'
+                parserlog.warning(ErrMsg)
+                parserlog.debug('Тема сообщения изменилась : ' + match3.group('Topic'))
+                Topic=match3.group('Topic')
     return {'PrevRef':PrevRef, 'NextRef':NextRef, 'PostsList':PostsList}
 # end def ParsePage
 
@@ -225,7 +241,7 @@ def OutputPage(ParseResult):
 
 <body>
 <center><h3>Новые хроники Каэр Морхена<br>
-(<a href="%s" title="Оригинал в Форуме"><font size="-1">%s</font></a>)</h3>
+(<a href="%s" title="Оригинал в Форуме" target="_new"><font size="-1">%s</font></a>)</h3>
 <p><a href="%s#EOP">&lt;&lt;- Предыдущий лист</a> |
  <a href="%s">Следующий лист -&gt;&gt;</a></p>
 </center>
@@ -233,7 +249,7 @@ def OutputPage(ParseResult):
     
     OutPageBody = '''
 <h4><a name="%s" href="#%s">%s</a><br>
-<font size="-2">(<a href="%s" title="Оригинал сообщения в Форуме">№ %s</a>)
+<font size="-2">(<a href="%s" title="Оригинал сообщения в Форуме" target="_new">№ %s</a>)
  <a href="%s" title="Перейти к оглавлению">Оглавление</a></font></h4>
 <p><font size="-1"><a href="auhors/%s.htm" title="Информация об Авторе">%s</a> | От %s</font>
 <p>
@@ -241,7 +257,7 @@ def OutputPage(ParseResult):
 <p>&nbsp;<p>
 '''
     
-    OutPageFooter = '''<center>(<a href="%s" title="Оригинал в Форуме" name="EOP"><font size="-1">%s</font></a>)</p>
+    OutPageFooter = '''<center>(<a href="%s" title="Оригинал в Форуме" name="EOP" target="_new"><font size="-1">%s</font></a>)</p>
 <p><a href="%s#EOP">&lt;&lt;- Предыдущий лист</a> | <a href="%s">Следующий лист -&gt;&gt;</a></p></center>
 </body>
 </html>
@@ -323,7 +339,7 @@ class index:
         for i in self.index:
             OutData=OutData +\
                     ('<font size="-2">(<a href="http://www.fiction.kiev.ua/forum/lst/lst_%s.htm#%s" '\
-                     'name="%s.%s" title="Message source">%s#%s</a>)</font> '\
+                     'name="%s.%s" title="Message source" target="_new">%s#%s</a>)</font> '\
                      '<a href="%s">&#8226;&nbsp;%s</a> |'\
                      ' <font size="-1">oт %s %s | by <a href="auhors/%s.htm">%s</a></font><br>\n' %\
                       (i['PageID'], i['MsgID'],\
@@ -348,8 +364,12 @@ class index:
 WorkPath = "E:\MMV\pt"
 SourceCachePath = WorkPath + os.sep + "Cache"
 OutPath = WorkPath + os.sep + "Out"
-FileName = "http://www.fiction.kiev.ua/forum/lst/lst_1577.htm"
+# DN
+# FileName = "http://www.fiction.kiev.ua/forum/lst/lst_2583.htm"    # first
+# KM
+#FileName = "http://www.fiction.kiev.ua/forum/lst/lst_1577.htm"   # first
 #FileName = "http://www.fiction.kiev.ua/forum/lst/lst_2592.htm"
+FileName = "http://www.fiction.kiev.ua/forum/lst/lst_3372.htm"
 #FileName = urllib.pathname2url("E:\MMV\pt\lst_3372.htm")
 LogName = "Log.txt"
 refresh = False
