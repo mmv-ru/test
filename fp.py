@@ -19,13 +19,20 @@ import string
 import sys
 import os
 import urllib
-from types import *
+# import urlparse
+# from types import *
 import re
 #import sre
 #flags=re.LOCALE | re.MULTILINE | re.UNICODE | re.VERBOSE | re.DOTALL | re.IGNORECASE | sre.DEBUG
 flags=re.LOCALE | re.MULTILINE | re.UNICODE | re.VERBOSE | re.DOTALL | re.IGNORECASE
 
 class ConvertationFail(Exception):pass
+
+def quote(Str):
+    """ Вообще то должно бы делать любую 
+    (не слишком длинную) строку 
+    допустимым именем файла"""
+    return Str
 
 def TagNFormat(str):
     """ Easy HTML Pretty Formatter"""
@@ -44,11 +51,11 @@ def ParsePage(Page):
         .{0,7000}?<table[^>]*?>      #  Page Header
         .{0,300}?<tr[^>]*?>
         .{0,300}?<td[^>]*?>
-        (.{0,300}?<a\ href="(?P<PrevRef>lst_[0-9]*\.htm)">.{0,300}?(Предыдущий).{0,10}?</a>|)
+        (.{0,300}?<a\ href="(?P<PrevRef>lst_[0-9]*\.htm)">.{0,300}?(Предыдущий).{0,30}?</a>|)
         .{0,300}?<td[^>]*?>
         .*?\d{1,2}\ \S{1,20}?\ \d{2,4}\ -\ \d{1,2}\ \S{1,10}?\ \d{2,4}.{0,300}?  # Date - Date
         .{0,300}?<td[^>]*?>
-        (.{0,300}?<a\ href="(?P<NextRef>lst_[0-9]*\.htm)">.{0,300}?(Следующий).{0,300}?</a>|)
+        (.{0,300}?<a\ href="(?P<NextRef>lst_[0-9]*\.htm)">.{0,300}?(Следующий).{0,30}?</a>|)
         .{0,300}?</table>
         .{0,3000}?добавить\ новое
     
@@ -57,11 +64,11 @@ def ParsePage(Page):
         <table[^>]{0,300}?>      # Page Footer
         .{0,300}?<tr[^>]*?>
         .{0,300}?<td[^>]*?>
-        (.{0,300}?<a\ href="(?P=PrevRef)">.{0,300}?(Предыдущий).{0,300}?</a>|)
+        (.{0,300}?<a\ href="(?P=PrevRef)">.{0,300}?(Предыдущий).{0,30}?</a>|)
         .{0,300}?<td[^>]*?>
         .{0,300}?\d{1,2}\ \S{1,20}?\ \d{2,4}\ -\ \d{1,2}\ \S{1,20}?\ \d{2,4}.{0,300}?  # Date - Date
         .{0,300}?<td[^>]*?>
-        (.{0,300}?<a\ href="(?P=NextRef)">.*?(Следующий).{0,300}?</a>|)
+        (.{0,300}?<a\ href="(?P=NextRef)">.*?(Следующий).{0,30}?</a>|)
         .{0,300}?</table>
                         ''', flags)
     PSmatch=PageStructure.match(Page)
@@ -71,13 +78,11 @@ def ParsePage(Page):
         parserlog.critical(ErrMsg)
         raise ConvertationFail(ErrMsg)
     # print match1.groups()
-    print >>FileLog, 'Forum Header & Footer parsed'
-    print 'Forum Header & Footer parsed'
+    log.info('Forum Header & Footer parsed')
     PrevRef=PSmatch.groupdict('')['PrevRef']
     NextRef=PSmatch.groupdict('')['NextRef']
-    print >>FileLog, 'Предидущий лист : ' + PSmatch.groupdict('')['PrevRef']
-    print >>FileLog, 'Следующий лист  : ' + PSmatch.groupdict('')['NextRef']
-    print >>FileLog
+    log.info('Предидущий лист : ' + PrevRef)
+    log.info('Следующий лист  : ' + NextRef)
     
     PageBody=PSmatch.group('Posts')
     
@@ -221,22 +226,23 @@ def OutputPage(ParseResult):
 <body>
 <center><h3>Новые хроники Каэр Морхена<br>
 (<a href="%s" title="Оригинал в Форуме"><font size="-1">%s</font></a>)</h3>
-<p><a href="%s">&lt;&lt;- Предыдущий лист</a> |
+<p><a href="%s#EOP">&lt;&lt;- Предыдущий лист</a> |
  <a href="%s">Следующий лист -&gt;&gt;</a></p>
 </center>
 '''
     
     OutPageBody = '''
-<h4>%s<br>
-<font size="-2">(<a href="%s" title="Оригинал сообщения в Форуме">№ %s</a>)</font></h3>
-<p><font size="-1"><a href="The_Omniscient_third_person.htm" title="Информация об Авторе">%s</a> | От %s</font>
+<h4><a name="%s" href="#%s">%s</a><br>
+<font size="-2">(<a href="%s" title="Оригинал сообщения в Форуме">№ %s</a>)
+ <a href="%s" title="Перейти к оглавлению">Оглавление</a></font></h4>
+<p><font size="-1"><a href="auhors/%s.htm" title="Информация об Авторе">%s</a> | От %s</font>
 <p>
 %s
 <p>&nbsp;<p>
 '''
     
-    OutPageFooter = '''<center>(<a href="%s" title="Оригинал в Форуме><font size="-1">%s</font></a>)</p>
-<p><a href="%s">&lt;&lt;- Предыдущий лист</a> | <a href="%s">Следующий лист -&gt;&gt;</a></p></center>
+    OutPageFooter = '''<center>(<a href="%s" title="Оригинал в Форуме" name="EOP"><font size="-1">%s</font></a>)</p>
+<p><a href="%s#EOP">&lt;&lt;- Предыдущий лист</a> | <a href="%s">Следующий лист -&gt;&gt;</a></p></center>
 </body>
 </html>
 '''
@@ -267,9 +273,10 @@ def OutputPage(ParseResult):
                  )
     # Body`s
     for Post in PostsList:
-        FileOut.write(OutPageBody % (Post['PostName'], 
+        FileOut.write(OutPageBody % (Post['MsgID'], Post['MsgID'], Post['PostName'], 
                                      FileName + '#' + Post['MsgID'], Post['MsgID'],\
-                                     Post['Author'], Post['Date'] + ' ' + Post['Time'],\
+                                     'index.htm#' + PageID + '.' + Post['MsgID'],\
+                                     quote(Post['Author']), Post['Author'], Post['Date'] + ' ' + Post['Time'],\
                                      TagNFormat(Post['PostBody']))\
                      )
     # Footer
@@ -280,11 +287,69 @@ def OutputPage(ParseResult):
     FileOut.close
 # end def OutputPage
 
+
+class index:
+    def __init__(self):
+        self.index=[]
+    
+    def Add(self, Post):
+        postI={}
+        postI['MsgID']=Post['MsgID']
+        postI['PostName']=Post['PostName']
+        postI['Author']=Post['Author']
+        postI['PageID']=re.compile('lst_(\d*)\.htm(l|)', flags).search(Post['SourceFile']).group(1)
+        postI['Date']=Post['Date']
+        postI['Time']=Post['Time']
+        self.index=self.index+[postI]
+
+    def Scan(self, Pages):
+        for Page in Pages:
+            for Post in Page['PostsList']:
+                self.Add(Post)
+
+    def HtmlIndex(self):
+        OutData="""<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<title>Новые хроники Каэр Морхена</title>
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1251">
+</head>
+
+<body>
+<center><h3>Новые хроники Каэр Морхена</h3>
+<h4>Global Index</h4>
+</center>
+"""
+        for i in self.index:
+            OutData=OutData +\
+                    ('<font size="-2">(<a href="http://www.fiction.kiev.ua/forum/lst/lst_%s.htm#%s" '\
+                     'name="%s.%s" title="Message source">%s#%s</a>)</font> '\
+                     '<a href="%s">&#8226;&nbsp;%s</a> |'\
+                     ' <font size="-1">oт %s %s | by <a href="auhors/%s.htm">%s</a></font><br>\n' %\
+                      (i['PageID'], i['MsgID'],\
+                       i['PageID'], i['MsgID'], i['PageID'], i['MsgID'],\
+                       'opusi_' + i['PageID'] + '.htm#' + i['MsgID'],\
+                       i['PostName'],\
+                       i['Date'], i['Time'],\
+                       quote(i['Author']), i['Author']\
+                      )\
+                    )
+        OutData=OutData + '''
+</body>
+</html>
+'''
+        return OutData
+
+##################################################
+# __main__()
+# Параметры выполнения
+##################################################
+
 WorkPath = "E:\MMV\pt"
 SourceCachePath = WorkPath + os.sep + "Cache"
 OutPath = WorkPath + os.sep + "Out"
-#FileName = "http://www.fiction.kiev.ua/forum/lst/lst_1577.htm"
-FileName = "http://www.fiction.kiev.ua/forum/lst/lst_2277.htm"
+FileName = "http://www.fiction.kiev.ua/forum/lst/lst_1577.htm"
+#FileName = "http://www.fiction.kiev.ua/forum/lst/lst_2592.htm"
 #FileName = urllib.pathname2url("E:\MMV\pt\lst_3372.htm")
 LogName = "Log.txt"
 refresh = False
@@ -312,56 +377,62 @@ log.setLevel(logging.DEBUG)
 
 log.info('Begin.')
 
+Pages=[]
+
 KeyInt=False
 while True:
-    log.info('Page     : ' + FileName)
-    fBase, fName = os.path.split(FileName)
-    rePageID = re.compile('lst_(\d*)\.htm', flags)
-    PageID = rePageID.match(fName).group(1)
-    
-    # Cached URL access
-    if not(os.path.exists(SourceCachePath + os.sep + fName)) or refresh:
-        # Download page
-        try:
+    try:
+        log.info('Page     : ' + FileName)
+        fBase, fName = os.path.split(FileName)
+        rePageID = re.compile('lst_(\d*)\.htm(l|)', flags)
+        PageID = rePageID.match(fName).group(1)
+        
+        # Cached URL access
+        if not(os.path.exists(SourceCachePath + os.sep + fName)) or refresh:
+            # Download page
             log.info('Retriev url : ' + FileName)
             urllib.urlretrieve(FileName, SourceCachePath + os.sep + fName)
             log.info('Retriev complete.')
-        except KeyboardInterrupt:
-            #os.remove(SourceCachePath + os.sep + fName)
-            #raise
-            KeyInt=True
-            pass
-        if KeyInt: raise
-    else:
-        log.info('Use Cached.')
-    FileD=open(SourceCachePath + os.sep + fName, 'rb')
-    Page=FileD.read()
-    
-    ParseResult=ParsePage(Page)
-    
-    #print PagePos
-    #print PageBody[PagePos:PagePos+400]
-    
-    print '   ## Page Parse Complete! ##'
-#    print 'PrevRef: ', ParseResult['PrevRef']
-    print 'NextRef: ', ParseResult['NextRef']
-    
-    # Output html Template
-    try:
-        print 'Output Formatted Page....'
+            if KeyInt: break
+        else:
+            log.info('Use Cached.')
+        FileD=open(SourceCachePath + os.sep + fName, 'rb')
+        Page=FileD.read()
+        FileD.close()
+        
+        ParseResult=ParsePage(Page)
+        
+        Pages=Pages+[ParseResult]
+        #print PagePos
+        #print PageBody[PagePos:PagePos+400]
+        
+        log.info('   ## Page Parse Complete! ##')
+    #    print 'PrevRef: ', ParseResult['PrevRef']
+        log.info('NextRef: ' + ParseResult['NextRef'])
+        
+        # Output html Template
+        log.info('Output Formatted Page....')
         OutputPage(ParseResult)
-        print 'Output Formatted Page Complete.'
+        log.info('Output Formatted Page Complete.')
+        if KeyInt: break
+        
+        if ParseResult['NextRef']=='':
+            log.info('No NextRef. End.')
+            break
+        else:
+            FileName = fBase + '/' + ParseResult['NextRef']
+        if ManualStep:
+            raw_input('Press Enter for next page process...')
     except KeyboardInterrupt:
         #os.remove(SourceCachePath + os.sep + fName)
         #raise
         KeyInt=True
-        pass
-    if KeyInt: raise
-    
-    if ParseResult['NextRef']=='':
-        print 'No NextRef. End.'
-        break
-    else:
-        FileName = fBase + '/' + ParseResult['NextRef']
-    if ManualStep:
-        raw_input('Press Enter for next page process...')
+raw_input('Press Enter for Build Index or Ctrl-C to finish.')
+log.info('Building Globals...')
+ind = index()
+ind.Scan(Pages)
+IndexFile=open(OutPath + os.sep + 'index.htm', 'wb')
+IndexFile.write(ind.HtmlIndex())
+IndexFile.close()
+
+# BuildGlobal(Pages)
