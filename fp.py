@@ -13,6 +13,8 @@
 #import htmllib, formatter
 # from operator import truth
 
+version = "0.1.3"
+
 import logging
 
 import string
@@ -63,6 +65,7 @@ def ParsePage(Page, Topic=None):
         (.{0,300}?<a\ href="(?P<NextRef>lst_[0-9]*\.htm)">.{0,300}?(Следующий).{0,30}?</a>|)
         .{0,300}?</table>
         .{0,3000}?добавить\ новое
+        .{0,200}?</table>
     
         (?P<Posts>.*)      # Messages
     
@@ -81,8 +84,8 @@ def ParsePage(Page, Topic=None):
         ErrMsg = 'Parsing Page Header&Footer Failed :-(\n' +\
            'Convertation Aborted at : ' + FileName
         parserlog.critical(ErrMsg)
+        parserlog.critical(Page)
         raise ConvertationFail(ErrMsg)
-    # print match1.groups()
     log.info('Forum Header & Footer parsed')
     PrevRef=PSmatch.groupdict('')['PrevRef']
     NextRef=PSmatch.groupdict('')['NextRef']
@@ -367,9 +370,10 @@ OutPath = WorkPath + os.sep + "Out"
 # DN
 # FileName = "http://www.fiction.kiev.ua/forum/lst/lst_2583.htm"    # first
 # KM
-#FileName = "http://www.fiction.kiev.ua/forum/lst/lst_1577.htm"   # first
+FileName = "http://www.fiction.kiev.ua/forum/lst/lst_1577.htm"   # first
 #FileName = "http://www.fiction.kiev.ua/forum/lst/lst_2592.htm"
-FileName = "http://www.fiction.kiev.ua/forum/lst/lst_3372.htm"
+#FileName = "http://www.fiction.kiev.ua/forum/lst/lst_3372.htm"
+#FileName = "http://www.fiction.kiev.ua/forum/lst/lst_3372.htm"
 #FileName = urllib.pathname2url("E:\MMV\pt\lst_3372.htm")
 LogName = "Log.txt"
 refresh = False
