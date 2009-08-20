@@ -1,0 +1,43 @@
+<html>
+<head>
+</head>
+<body>
+<A Name="ID=(\d+)"></A>
+<table>
+<TR>
+<TD>
+<A Name="(?P<ID>\d+)"></A>
+<
+</table>
+
+
+<table>
+<tr>
+<td>
+(?P<Sender>\d+)
+<td>
+%Date
+<td>
+%Time
+<td>
+Сообщение № ID
+<td>
+skip data
+<tr>
+<td>
+Тема:
+<td>
+Опусы и пародии, навеянные фант. произведениями
+<tr>
+<td>
+Заголовок:
+<td>
+%Heading
+
+<tr>
+<td>
+%Post include <br>
+</table>
+
+</body>
+</html>
