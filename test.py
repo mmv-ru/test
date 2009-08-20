@@ -1,10 +1,13 @@
 #!pyton
+# Tested on Python Release 2.2.3 Win32
 
 import os
 
-WorkPath = """E:\\MMV\\testgit\\test"""
+WorkPath = """E:\MMV\pt"""
 FileName = """lst_3372.htm"""
 LogName = """Log.txt"""
+
+from types import *
 
 FileD=open(WorkPath + os.sep + FileName, 'rb')
 FileLog=open(WorkPath + os.sep + LogName, 'wb')
@@ -30,40 +33,46 @@ TestString='Предыдущий лист'
 Search_NotSpace=re.compile('\S')
 Search_PastRef=re.compile('Предыдущий ли', re.LOCALE | re.MULTILINE | re.UNICODE)
 
+STARTTAG=1
+ENDTAG=2
+
+TestTemplate=[]
+
 class FKParser(htmllib.HTMLParser):
     def __init__(self, formatter):
         htmllib.HTMLParser.__init__(self, formatter)
-        self.Posts = []
-        self.CPost = {}
+        self.Posts = [] #List
+        self.CPost = {} #Dictionary
         self.CurrentHref = None
         self.PastRef = None
         self.State = 0
 
     def handle_tag(self, tag, open_type, metod, attrs):
-        pass
-        
-    def handle_starttag(self, tag, metod, attrs):
-        htmllib.HTMLParser.handle_starttag(self, tag, metod, attrs)
-        print "Encountered the beginning of a %s tag" % tag
         if   self.State==2:
             if   tag=='table':
                 self.State=3
-#        elif self.State==3:
-        
-        elif self.State==4:
-            if   tag=='table':
-                self.State=5
-
-    def handle_endtag(self, tag, metod):
-        htmllib.HTMLParser.handle_endtag(self, tag, metod)
-        print "Enountered the end of a %s tag" % tag
-        if   self.State==2:
-            pass
         elif self.State==3:
             if   tag=='table':
                 self.State=4
         elif self.State==4:
-            self.State=5
+            if   tag=='table':
+                self.State=5
+        
+    def handle_starttag(self, tag, metod, attrs):
+        print "Encountered the beginning of a %s tag" % tag
+        htmllib.HTMLParser.handle_starttag(self, tag, metod, attrs)
+        self.handle_tag(tag, STARTTAG, metod, attrs)
+
+    def handle_endtag(self, tag, metod):
+        print "Enountered the end of a %s tag" % tag
+        htmllib.HTMLParser.handle_endtag(self, tag, metod)
+        self.handle_tag(tag, ENDTAG, metod, [])
+
+    def handle_charref(self, ref):
+        print >>FileLog, ref
+
+    def handle_entityref(self, ref):
+        print >>FileLog, ref
         
     def anchor_bgn(self, href, name, type):
         if not(href==None):
@@ -125,7 +134,57 @@ class FKParser(htmllib.HTMLParser):
 #            oemout.write(data)
     pass
 
-Frm=formatter.NullFormatter()
-FP=FKParser(Frm)
-FP.feed(Page)
-FP.close()
+#FP=FKParser(formatter.NullFormatter())
+#FP.feed(Page)
+#FP.close()
+
+
+class HTTemplateParser(htmllib.HTMLParser):
+    def __init__(self, formatter):
+        htmllib.HTMLParser.__init__(self, formatter)
+        self.Posts = [] #List
+        self.CPost = {} #Dictionary
+        self.CurrentHref = None
+        self.PastRef = None
+        self.State = 0
+
+    def handle_tag(self, tag, open_type, attrs):
+        if open_type==STARTTAG:
+            print >>FileLog, '<%s' % tag ,
+            for TParam in attrs: print >>FileLog, ' %s="%s"' % TParam,
+            print >>FileLog, '>'
+        elif open_type==ENDTAG:
+            print >>FileLog, '</%s>' % tag
+        pass
+
+    def handle_starttag(self, tag, metod, attrs):
+        self.handle_tag(tag, STARTTAG, attrs)
+        htmllib.HTMLParser.handle_starttag(self, tag, metod, attrs)
+
+    def handle_endtag(self, tag, metod):
+        self.handle_tag(tag, ENDTAG, [])
+        htmllib.HTMLParser.handle_endtag(self, tag, metod)
+       
+    def unknown_starttag(self, tag, attributes):
+        self.handle_tag(tag, STARTTAG, attributes)
+        htmllib.HTMLParser.unknown_starttag(self, tag, attributes)
+
+    def unknown_endtag(self, tag):
+        self.handle_tag(tag, ENDTAG, [])
+        htmllib.HTMLParser.unknown_endtag(self, tag)
+
+    def handle_data(self, data):
+        if truth(Search_NotSpace.search(data)):
+            print >>FileLog, data
+#            for c in data: print >>FileLog, ord(c),
+#            print >>FileLog
+        htmllib.HTMLParser.handle_data(self, data)
+
+print >>FileLog, '\n         Template Test...\n'
+
+FileTemplate = "lst_template.hpt"
+FileT=open(WorkPath + os.sep + FileTemplate, 'rb')
+
+TP=HTTemplateParser(formatter.NullFormatter())
+TP.feed(FileT.read())
+TP.close()
